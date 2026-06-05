@@ -527,6 +527,21 @@ class ModRangeDoppler(QtWidgets.QMainWindow, ui_ModRangeDoppler.Ui_ModRangeDoppl
             Data = Data.reshape((self.dBrdCfg["Np"],self.dBrdCfg["N"]))
             Data = Data.transpose()
 
+            #################################################
+            # START : 0/1 SQUARE WAVE MODULATION
+            #################################################
+
+            square_wave = np.tile(
+                np.array([0, 1]),
+                Data.shape[1] // 2 + 1
+            )[:Data.shape[1]]
+
+            Data = Data * square_wave[np.newaxis, :]
+
+            #################################################
+            # END : 0/1 SQUARE WAVE MODULATION
+            #################################################
+
             N = self.RfBrd.Rad.Get('N')
             NrChn = self.RfBrd.Rad.Get('NrChn')
             ProcData = False

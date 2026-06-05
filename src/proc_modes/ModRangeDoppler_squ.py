@@ -1,4 +1,4 @@
-import src.ui.proc_modes.ui_ModRangeDoppler_1 as ui_ModRangeDoppler
+import src.ui.proc_modes.ui_ModRangeDoppler as ui_ModRangeDoppler
 from os.path import expanduser
 import time
 import re
@@ -309,7 +309,7 @@ class ModRangeDoppler(QtWidgets.QMainWindow, ui_ModRangeDoppler.Ui_ModRangeDoppl
             self.fft3d_window.show()
             # This is a test code
 
-            self.IniTSigim.emit()
+            self.SigIniTim.emit()
             self.SigProgressDone.emit()
             self.SigIniDone.emit()
             palette.setColor(QtGui.QPalette.Foreground, QtCore.Qt.black)
@@ -598,77 +598,168 @@ class ModRangeDoppler(QtWidgets.QMainWindow, ui_ModRangeDoppler.Ui_ModRangeDoppl
 
             self.progressbar.setValue(value)
 
+            #################################################
+            #ACQUIRE RAW FRAME
+            #################################################
+
             BrdData = self.RfBrd.GetDataEve()
 
+            # RX1 channel
             Data = BrdData[:, 0]
 
-            Data = Data.reshape((self.dBrdCfg["Np"], self.dBrdCfg["N"]))
+            # Convert to matrix:
+            # Rows    = ADC samples (fast time)
+            # Columns = chirps (slow time)
+
+            Data = Data.reshape(
+                (self.dBrdCfg["Np"], self.dBrdCfg["N"])
+            )
 
             Data = Data.transpose()
+
+            print("================================")
+            print("RAW DATA INFORMATION")
+            print("================================")
+            print("Shape :", Data.shape)
+            print("Samples/chirp :", self.dBrdCfg["N"])
+            print("Chirps/frame  :", self.dBrdCfg["Np"])
+
+            #################################################
+            # SAVE FIRST RAW FRAME
+            #################################################
+
+            if not hasattr(self, "raw_saved"):
+
+                np.savetxt(
+                    r"C:\Users\EMI_user1\Desktop\radar\RawFrame.csv",
+                    Data,
+                    delimiter=","
+                )
+
+                savemat(
+                    r"C:\Users\EMI_user1\Desktop\radar\RawFrame.mat",
+                    {"frame": Data}
+                )
+
+                self.raw_saved = True
+
+                print("Raw frame saved")
+
+            #################################################
+            # APPLY 0,1,0,1,... SQUARE WAVE TO CHIRPS
+            #################################################
+
+            square_wave = np.arange(Data.shape[1]) % 2
+
+            print("================================")
+            print("SQUARE WAVE MODULATION")
+            print("================================")
+            print("Square wave shape:", square_wave.shape)
+            print("Data shape:", Data.shape)
+            print("First 16 mask values:")
+            print(square_wave[:16])
+
+            print("Before modulation:")
+            print(Data[0, :16])
+
+            Data = Data * square_wave
+
+            print("After modulation:")
+            print(Data[0, :16])
+            #################################################
+            # SAVE MODULATED FRAME
+            #################################################
+
+            if not hasattr(self, "mod_saved"):
+
+                np.savetxt(
+                    r"C:\Users\EMI_user1\Desktop\radar\ModulatedFrame.csv",
+                    Data,
+                    delimiter=","
+                )
+
+                savemat(
+                    r"C:\Users\EMI_user1\Desktop\radar\ModulatedFrame.mat",
+                    {"frame": Data}
+                )
+
+                self.mod_saved = True
+
+                print("Modulated frame saved")
+
+            #################################################
+            # CONTINUE PROCESSING
+            #################################################
 
             N = self.RfBrd.Rad.Get("N")
 
             ProcData = False
 
-        if hasattr(Data, "shape"):
+            if hasattr(Data, "shape"):
 
-            DatSiz = Data.shape
+                DatSiz = Data.shape
 
-            if len(DatSiz) == 2:
+                if len(DatSiz) == 2:
 
-                if DatSiz[0] == N and DatSiz[1] == self.SigCfgNp:
-                    ProcData = True
+                    if DatSiz[0] == N and DatSiz[1] == self.SigCfgNp:
+                        ProcData = True
 
-        if ProcData:
+            if ProcData:
 
-            self.MeasData = np.copy(Data)
-            print("DATA RECEIVED")
-            print("Shape =", self.MeasData.shape)
+                self.MeasData = np.copy(Data)
+                print("DATA RECEIVED")
+                print("Shape =", self.MeasData.shape)
+                with open(
+                    r"C:\Users\EMI_user1\Desktop\radar\radar_matrix.txt",
+                    "w"
+                ) as f:
+                    np.savetxt(
+                        f,
+                        self.MeasData,
+                        fmt="%.6f",
+                        delimiter=","
+                    )
 
-            np.savetxt(
-                r"C:\Users\EMI_user1\Desktop\radar\radar_matrix.txt",
-                self.MeasData,
-                fmt="%.6f",
-                delimiter=",",
-            )
+                print("LATEST FRAME SAVED")
+                print("Shape =", self.MeasData.shape)
 
-            print("FILE WRITTEN")
+                with open(
+                    r"C:\Users\EMI_user1\Desktop\radar\radar_info.txt",
+                    "w"
+                ) as f:
 
-            with open(r"C:\Users\EMI_user1\Desktop\radar\radar_info.txt", "w") as f:
+                    f.write(f"Rows: {self.MeasData.shape[0]}\n")
+                    f.write(f"Columns: {self.MeasData.shape[1]}\n")
+                    f.write(f"Elements: {self.MeasData.size}\n")
+                    f.write(f"Bytes: {self.MeasData.nbytes}\n")
 
-                f.write(f"Rows: {self.MeasData.shape[0]}\n")
-                f.write(f"Columns: {self.MeasData.shape[1]}\n")
-                f.write(f"Elements: {self.MeasData.size}\n")
-                f.write(f"Bytes: {self.MeasData.nbytes}\n")
+                DataBus.latest_meas = self.MeasData
 
-            DataBus.latest_meas = self.MeasData
+                Data = self.CalcRangeDopplerMap(Data)
 
-            Data = self.CalcRangeDopplerMap(Data)
+                self.RDMap = np.copy(Data)
 
-            self.RDMap = np.copy(Data)
+                y = np.transpose(Data)
 
-            y = np.transpose(Data)
+                self.Image_Meas.setImage(
+                    y,
+                    pos=[self.SigCfgVelMin, self.SigCfgRMin],
+                    scale=[self.SigCfgVelScale, self.SigCfgRScale],
+                )
 
-            self.Image_Meas.setImage(
-                y,
-                pos=[self.SigCfgVelMin, self.SigCfgRMin],
-                scale=[self.SigCfgVelScale, self.SigCfgRScale],
-            )
+                self.plotview.setAspectLocked(False)
 
-            self.plotview.setAspectLocked(False)
+                self.Timer.start()
 
-            self.Timer.start()
+            else:
 
-        else:
+                self.progressbar.setRange(0, 100)
+                self.progressbar.setValue(100)
 
-            self.progressbar.setRange(0, 100)
-            self.progressbar.setValue(100)
+                self.SigMeasStop.emit()
+                self.SigMenuEna.emit()
 
-            self.SigMeasStop.emit()
-            self.SigMenuEna.emit()
-
-            self.RfBrd.CloseBrdMod0()
-
+                self.RfBrd.CloseBrdMod0()
     def Show3DRangeDoppler(self):
 
         try:
@@ -947,8 +1038,8 @@ class ModRangeDoppler(QtWidgets.QMainWindow, ui_ModRangeDoppler.Ui_ModRangeDoppl
             self.UpdIniAppend(
                 "Func", "self.Edit_Meas_NrFrms.setText", str(dBrdCfg["NrFrms"])
             )
-        if dBrdCfg["NrFrms"] < 10:
-            dBrdCfg["NrFrms"] = 10
+        if dBrdCfg["NrFrms"] < 1:
+            dBrdCfg["NrFrms"] = 1
             self.UpdIniAppend(
                 "Func", "self.Edit_Meas_NrFrms.setText", str(dBrdCfg["NrFrms"])
             )
