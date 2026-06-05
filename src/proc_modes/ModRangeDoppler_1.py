@@ -600,6 +600,37 @@ class ModRangeDoppler(QtWidgets.QMainWindow, ui_ModRangeDoppler.Ui_ModRangeDoppl
 
             Data = Data.transpose()
 
+            #################################################
+            # SAVE FIRST FRAME FOR MATLAB
+            #################################################
+
+            if not hasattr(self, "frame_saved"):
+
+                savemat(
+                    r"C:\Users\EMI_user1\Desktop\radar\RawFrame.mat",
+                    {
+                        "frame": Data
+                    }
+                )
+
+                np.savetxt(
+                    r"C:\Users\EMI_user1\Desktop\radar\RawFrame.csv",
+                    Data,
+                    delimiter=","
+                )
+
+                self.frame_saved = True
+
+                print("FIRST FRAME SAVED TO MATLAB FILE")
+
+            #################################################
+            # OPTIONAL SQUARE WAVE MODULATION
+            #################################################
+
+            square_wave = (-1) ** np.arange(Data.shape[1])
+
+            Data = Data * square_wave
+
             N = self.RfBrd.Rad.Get("N")
 
             ProcData = False
@@ -978,7 +1009,7 @@ def CalcRangeDopplerMap(self, Data):
             # APPLY 0/1 SQUARE WAVE
     #################################################
 
-    square_wave = (np.arange(self.SigCfgNp) % 2 == 0).astype(float)
+    square_wave = (-1) ** np.arange(Data.shape[1])
 
     print("Square Wave Shape =", square_wave.shape)
 
