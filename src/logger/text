@@ -1,0 +1,12 @@
+RfRxEna
+Set Regs: [         3     131078  536876185 1073747097 1610618009 2147488921
+ 2684354585 2147515552]
+Configuring radar...
+ADAR PLL Locked
+Required memory greater than DSP buffer size: decrease CycSiz, N, FrmMeasSiz
+Traceback (most recent call last):
+  File "C:\Users\EMI_user1\Desktop\radar\testing_projects\testing.py", line 44, in <module>
+    Brd.RfMeas(dCfg)
+  File "C:\Users\EMI_user1\Desktop\radar\TinyRadTool\src\cmd_modules\TinyRad.py", line 249, in RfMeas
+    if dCfg['FrmMeasSiz'] > dCfg['FrmSiz']:
+KeyError: 'FrmSiz'
