@@ -20,19 +20,22 @@ Brd.RfTxEna(1, 100)
 
 dCfg = dict()
 
-dCfg["fStrt"]      = 24.00e9
-dCfg["fStop"]      = 24.25e9
+dCfg["fStrt"] = 24.00e9
+dCfg["fStop"] = 24.25e9
 
-dCfg["TRampUp"]    = 1.024e-3      # 1.024 ms
-dCfg["Perd"]       = 1.10e-3       # slightly larger than TRampUp
+dCfg["TRampUp"] = 1.024e-3
 
-dCfg["N"]          = 1024          # samples/chirp
+# give plenty of margin
+dCfg["Perd"] = 1.5e-3
 
-dCfg["Seq"]        = [1]
-dCfg["CycSiz"]     = 1
+dCfg["N"] = 1024
 
-# start small first
-dCfg["FrmMeasSiz"] = 128
+dCfg["Seq"] = [1]
+
+dCfg["CycSiz"] = 1
+
+dCfg["FrmMeasSiz"] = 64
+dCfg["FrmSiz"] = 64
 
 # --------------------------------------------------
 # Configure radar
